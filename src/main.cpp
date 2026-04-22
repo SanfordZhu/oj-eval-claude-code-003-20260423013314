@@ -21,17 +21,16 @@ static void insertSolveTime(vector<int> &v, int t){
 }
 
 struct Key {
-    int solved; long long penalty; const vector<int>* solveTimes; string name;
+    int solved; long long penalty; vector<int> solveTimes; string name;
 };
 
 struct ScoreCmp {
     bool operator()(const Key &a, const Key &b) const {
         if(a.solved!=b.solved) return a.solved>b.solved;
         if(a.penalty!=b.penalty) return a.penalty<b.penalty;
-        const auto &va=*a.solveTimes, &vb=*b.solveTimes;
-        size_t na=va.size(), nb=vb.size();
+        size_t na=a.solveTimes.size(), nb=b.solveTimes.size();
         for(size_t i=0;i<max(na,nb);++i){
-            int xa = (i<na? va[i]: 0), xb = (i<nb? vb[i]: 0);
+            int xa = (i<na? a.solveTimes[i]: 0), xb = (i<nb? b.solveTimes[i]: 0);
             if(xa!=xb) return xa<xb;
         }
         return a.name<b.name;
@@ -46,7 +45,7 @@ struct Competition {
     OrderTree board; OrderTree frozenBoard;
 };
 
-static Key buildKey(Team &t){ return Key{t.solved, t.penalty, &t.solveTimes, t.name}; }
+static Key buildKey(const Team &t){ return Key{t.solved, t.penalty, t.solveTimes, t.name}; }
 
 static bool teamHasFrozen(const Team &t, const vector<char>& probList){
     for(char c: probList){ const auto &ps=t.probs[c-'A']; if(ps.frozen && !ps.solved) return true; }
@@ -102,7 +101,7 @@ int main(){
             comp.started=true; comp.duration=duration; comp.m=pc; comp.probList.clear();
             for(int i=0;i<pc;i++) comp.probList.push_back(char('A'+i));
             for(auto &kv: comp.teams){ kv.second.solveTimes.clear(); kv.second.solved=0; kv.second.penalty=0; }
-            rebuildBoard(comp); // lex order via name tie-break
+            rebuildBoard(comp);
             cout<<"[Info]Competition starts.\n";
         }else if(cmd=="SUBMIT"){
             string prob, BY, teamName, WITH, status, AT; int time; cin>>prob>>BY>>teamName>>WITH>>status>>AT>>time;
@@ -124,7 +123,7 @@ int main(){
         }else if(cmd=="SCROLL"){
             if(!comp.frozen){ cout<<"[Error]Scroll failed: scoreboard has not been frozen.\n"; continue; }
             cout<<"[Info]Scroll scoreboard.\n";
-            if(comp.board.size()!=comp.teams.size()) rebuildBoard(comp);
+            rebuildBoard(comp); // flush before scroll
             printScoreboard(comp);
             while(comp.frozenBoard.size()>0){
                 Key lowest = *comp.frozenBoard.find_by_order((int)comp.frozenBoard.size()-1);
@@ -148,7 +147,6 @@ int main(){
             string name; cin>>name; auto it=comp.teams.find(name);
             if(it==comp.teams.end()){ cout<<"[Error]Query ranking failed: cannot find the team.\n"; continue; }
             cout<<"[Info]Complete query ranking.\n"; if(comp.frozen) cout<<"[Warning]Scoreboard is frozen. The ranking may be inaccurate until it were scrolled.\n";
-            if(comp.board.size()!=comp.teams.size()) rebuildBoard(comp);
             int r = comp.board.order_of_key(buildKey(it->second))+1; cout<<name<<" NOW AT RANKING "<<r<<"\n";
         }else if(cmd=="QUERY_SUBMISSION"){
             string team, WHERE, PROBLEM, EQ1, problemFilter, AND, STATUS, EQ2, statusFilter; cin>>team>>WHERE>>PROBLEM>>EQ1>>problemFilter>>AND>>STATUS>>EQ2>>statusFilter;
